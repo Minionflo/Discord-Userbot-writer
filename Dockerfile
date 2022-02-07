@@ -1,6 +1,6 @@
-FROM golang:alpine
-RUN mkdir -p /app
-WORKDIR /app
-COPY main.go /app/
-RUN go build main.go
-CMD ["./main"]
+FROM node:17.4.0
+RUN mkdir -p /usr/src/bot
+WORKDIR /usr/src/bot
+COPY . /usr/src/bot
+RUN npm install
+CMD ["npm", "start"]
