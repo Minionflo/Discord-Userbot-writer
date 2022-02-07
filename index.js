@@ -42,7 +42,8 @@ client.on('ready', () => {
 
 var cmdmap = {
     find: cmd_find,
-    avatar: cmd_avatar
+    avatar: cmd_avatar,
+    status: cmd_status
 }
 
 async function cmd_find(msg, args) {
@@ -66,6 +67,20 @@ async function cmd_avatar(msg, args) {
     const user = await client.users.cache.get(id)
     if(user == undefined) { client.channels.cache.get(config_channel).send("User not found"); return false }
     await client.channels.cache.get(config_channel).send(user.avatarURL({size: 4096, "format": "png", "dynamic": true}))
+}
+
+function cmd_status(msg, args) {
+    if(args[0] == "online") {
+        client.user.setStatus("online")
+    } else if(args[0] == "offline") {
+        client.user.setStatus("invisible")
+    } else if(args[0] == "idle") {
+        client.user.setStatus("idle")
+    } else if(args[0] == "dnd") {
+        client.user.setStatus("dnd")
+    } else {
+        client.channels.cache.get(config_channel).send("Invalid status")
+    }
 }
 
 client.on('message', (msg) => {
