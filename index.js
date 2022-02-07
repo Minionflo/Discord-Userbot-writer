@@ -30,14 +30,14 @@ client.on('ready', () => {
         var time_now = new Date()
         time_offline.setHours(24,0,0,0);
         time_online.setHours(10,0,0,0);
-        if(Math.floor(time_now.getTime() / 60000) == Math.floor(time_online.getTime() / 60000)) {
+        if(Math.floor(time_now.getTime() / 1000) == Math.floor(time_online.getTime() / 1000)) {
             console.log("online")
             client.user.setStatus("online")
-        } else if(Math.floor(time_now.getTime() / 60000) == Math.floor(time_offline.getTime() / 60000)) {
+        } else if(Math.floor(time_now.getTime() / 1000) == Math.floor(time_offline.getTime() / 1000)) {
             console.log("offline")
             client.user.setStatus("invisible")
         }
-    }, 60000)
+    }, 1000)
 })
 
 var cmdmap = {
