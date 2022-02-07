@@ -11,7 +11,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "discord.js": "^12.5.3",
-    "discord.js.userbot": "^1.0.3"
+    "discord.js": "^12.5.3"
   }
 }

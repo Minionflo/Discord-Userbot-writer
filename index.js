@@ -1,5 +1,5 @@
 const Discord = require('discord.js');
-const allowUserBotting = require('discord.js.userbot');
+const allowUserBotting = require('./user.js');
 const client = new Discord.Client();
 const fs = require('fs');
 
