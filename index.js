@@ -42,6 +42,7 @@ client.on('ready', () => {
 
 var cmdmap = {
     find: cmd_find,
+    voice_list: cmd_voice_list,
     avatar: cmd_avatar,
     status: cmd_status
 }
@@ -56,10 +57,25 @@ async function cmd_find(msg, args) {
         channel = channell.name
         guild = channell.guild.name
     } else {
-        channel = "None"
-        guild = "None"
+        channel = undefined
+        guild = undefined
     }
-    client.channels.cache.get(msg.channel.id).send("Found voice channel: " + channel + " in " + guild)
+    client.channels.cache.get(config_channel).send("Channel Name: " + channel + "\nChannel id: " + voicechannel + "\nGuild Name: " + guild)
+}
+
+async function cmd_voice_list(msg, args) {
+    const id = await args[0]
+    var users = []
+    if(id != null) {
+        const channell = await client.channels.cache.get(id)
+        userss = await channell.members
+        userss.forEach(function(user) {
+            users.push(user.user.tag)
+        })
+        client.channels.cache.get(config_channel).send("Users: " + users.join("; "))
+    } else {
+        client.channels.cache.get(config_channel).send("No channel id provided")
+    }
 }
 
 async function cmd_avatar(msg, args) {
