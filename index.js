@@ -1,12 +1,52 @@
 const Discord = require('discord.js');
 const allowUserBotting = require('./user.js');
-const client = new Discord.Client();
+const dclient = new Discord.Client();
 const fs = require('fs');
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+
+const userSchema = new Schema({
+    _id: Number,
+    voicechannel: { type: String },
+    flags: {type: String },
+    locale: { type: String },
+    status: { type: String, required: true},
+    presence: { type: Array },
+    tag: { type: String, required: true },
+    avatarURL: { type: String, required: true },
+    created: { type: Date, required: true }
+}, {timestamps: true});
+
+const botSchema = new Schema({
+    _id: Number,
+    status: { type: String, required: true},
+    newstatus: { type: String},
+    tag: { type: String, required: true },
+    created: { type: Date, required: true }
+}, {timestamps: true});
+
+const voicechannelSchema = new Schema({
+    _id: Number,
+    members: { type: Array, required: true },
+    parent: { type: String, required: true },
+    userLimit: { type: Number, required: true },
+    name: { type: String, required: true },
+    guild: { type: String, required: true },
+    created: { type: Date, required: true }
+}, {timestamps: true});
+
+const MUser = mongoose.model('User', userSchema);
+const MBot = mongoose.model('Bot', botSchema);
+const MVoicechannel = mongoose.model('Voicechannel', voicechannelSchema);
 
 var config_token = process.env.TOKEN
-var config_prefix = process.env.PREFIX
-var config_owner = process.env.OWNER
-var config_channel = process.env.CHANNEL
+var db_host = process.env.DB_HOST
+var db_port = process.env.DB_PORT || "27017"
+var db_name = process.env.DB_NAME
+var db_user = process.env.DB_USER
+var db_pass = process.env.DB_PASS
+process.env.TZ = "UTC"
+
 
 if(process.argv.slice(2) == "test") {
     var secret = fs.readFileSync('secret', 'utf8').split(/\r?\n/)
@@ -19,105 +59,102 @@ if(process.argv.slice(2) == "test") {
     })
 }
 
-var voice = {}
-
-client.on('ready', () => {
-    console.log(`Online`)
-    client.user.setStatus("online")
-    setInterval(() => {
-        var time_online = new Date()
-        var time_offline = new Date()
-        var time_now = new Date()
-        time_offline.setHours(23,59,59,0);
-        time_online.setHours(10,0,0,0);
-        if(Math.floor(time_now.getTime() / 1000) == Math.floor(time_online.getTime() / 1000)) {
-            console.log("online")
-            client.user.setStatus("online")
-        } else if(Math.floor(time_now.getTime() / 1000) == Math.floor(time_offline.getTime() / 1000)) {
-            console.log("offline")
-            client.user.setStatus("invisible")
+dclient.on('ready', async () => {
+    await mongoose.connect(`mongodb://${db_user}:${db_pass}@${db_host}:${db_port}/${db_name}`, {useNewUrlParser: true, useUnifiedTopology: true})
+    await console.log(`Online`)
+    setInterval(async () => {
+        var bott = await MBot.findById(dclient.user.id)
+        if(bott.newstatus == "online") {
+            await dclient.user.setStatus("online")
+        } else if(bott.newstatus == "idle") {
+            await dclient.user.setStatus("idle")
+        } else if(bott.newstatus == "dnd") {
+            await dclient.user.setStatus("dnd")
+        } else if(bott.newstatus == "offline") {
+            await dclient.user.setStatus("invisible")
         }
-    }, 1000)
-})
-
-var cmdmap = {
-    find: cmd_find,
-    voice_list: cmd_voice_list,
-    avatar: cmd_avatar,
-    status: cmd_status
-}
-
-async function cmd_find(msg, args) {
-    const id = await args[0]
-    const voicechannel = await voice[id]
-    var channel
-    var guild
-    if(voicechannel != null) {
-        const channell = await client.channels.cache.get(voicechannel)
-        channel = channell.name
-        guild = channell.guild.name
-    } else {
-        channel = undefined
-        guild = undefined
-    }
-    client.channels.cache.get(config_channel).send("Channel Name: " + channel + "\nChannel id: " + voicechannel + "\nGuild Name: " + guild)
-}
-
-async function cmd_voice_list(msg, args) {
-    const id = await args[0]
-    var users = []
-    if(id != null) {
-        const channell = await client.channels.cache.get(id)
-        userss = await channell.members
-        userss.forEach(function(user) {
-            users.push(user.user.tag)
+        const bot = new MBot({
+            status: dclient.user.presence.status,
+            newstatus: null,
+            tag: dclient.user.tag,
+            created: dclient.user.createdAt
         })
-        client.channels.cache.get(config_channel).send("Users: " + users.join("; "))
-    } else {
-        client.channels.cache.get(config_channel).send("No channel id provided")
-    }
-}
+        bot._id = Number(await dclient.user.id)
+        await MBot.findByIdAndUpdate({_id: bot._id}, bot, {upsert: true})
+    } , 5000)
+})
 
-async function cmd_avatar(msg, args) {
-    const id = await args[0]
-    const user = await client.users.cache.get(id)
-    if(user == undefined) { client.channels.cache.get(config_channel).send("User not found"); return false }
-    await client.channels.cache.get(config_channel).send(user.avatarURL({size: 4096, "format": "png", "dynamic": true}))
-}
-
-function cmd_status(msg, args) {
-    if(args[0] == "online") {
-        client.user.setStatus("online")
-    } else if(args[0] == "offline") {
-        client.user.setStatus("invisible")
-    } else if(args[0] == "idle") {
-        client.user.setStatus("idle")
-    } else if(args[0] == "dnd") {
-        client.user.setStatus("dnd")
-    } else {
-        client.channels.cache.get(config_channel).send("Invalid status")
-    }
-}
-
-client.on('message', (msg) => {
-    if(msg.author.id == client.user.id) { return false}
-    if(msg.author.id != config_owner) { return false }
-    if(msg.channel.id != config_channel) { return false }
-    if(msg.content.startsWith(config_prefix)) {
-        var invoke = msg.content.split(' ')[0].substr(config_prefix.length)
-        var args   = msg.content.split(' ').slice(1)
-        if (invoke in cmdmap) {
-            if (cmdmap[invoke](msg, args) == false) {
-                console.log("ERROR")
-            }
+dclient.on('voiceStateUpdate', async (oldState, newState) => {
+    if(newState.channel != undefined) {
+        var users = []
+        if(newState.channel.members != null) {
+            await newState.channel.members.forEach(async (member) => {
+                await users.push(member.user.id)
+            })
+        }  else {
+            users = []
         }
+        const voicechannel = new MVoicechannel({
+            members: users,
+            parent: newState.channel.parentID,
+            userLimit: newState.channel.userLimit,
+            name: newState.channel.name,
+            guild: newState.guild.id,
+            created: newState.channel.createdAt
+        })
+        voicechannel._id = Number(await newState.channel.id)
+        await MVoicechannel.findByIdAndUpdate({_id: voicechannel._id}, voicechannel, {upsert: true})
+    } else {
+        const users = []
+        const voicechannel = new MVoicechannel({
+            members: users,
+            guild: newState.guild.id,
+        })
+        voicechannel._id = Number(await oldState.channel.id)
+        await MVoicechannel.findByIdAndUpdate({_id: voicechannel._id}, voicechannel, {upsert: true})
     }
+
+    const user = new MUser({
+        voicechannel: newState.channelID,
+        flags: newState.member.user.flags,
+        locale: newState.member.user.locale,
+        status: newState.member.user.presence.status,
+        presence: newState.member.user.presence.activities,
+        tag: newState.member.user.tag,
+        avatar: newState.member.user.avatarURL({size: 4096, "format": "png", "dynamic": true}),
+        created: newState.member.user.createdAt
+    })
+    user._id = Number(await newState.member.user.id)
+    await MUser.findByIdAndUpdate({_id: user._id}, user, {upsert: true})
 })
 
-client.on('voiceStateUpdate', (oldState, newState) => {
-    voice[newState.member.user.id] = newState.channelID
-    fs.writeFileSync('./voice.json', JSON.stringify(voice))
+dclient.on('presenceUpdate', async (oldState, newState) => {
+    const user = new MUser({
+        flags: newState.user.flags,
+        locale: newState.user.locale,
+        status: newState.user.presence.status,
+        presence: newState.user.presence.activities,
+        tag: newState.user.tag,
+        avatar: newState.user.avatarURL({size: 4096, "format": "png", "dynamic": true}),
+        created: newState.user.createdAt
+    })
+    user._id = Number(await newState.user.id)
+    await MUser.findByIdAndUpdate({_id: user._id}, user, {upsert: true})
 })
 
-allowUserBotting(client);
-client.login(config_token);
+dclient.on('userUpdate', async (oldState, newState) => {
+    const user = new MUser({
+        flags: newState.flags,
+        locale: newState.locale,
+        status: newState.presence.status,
+        presence: newState.presence.activities,
+        tag: newState.tag,
+        avatar: newState.avatarURL({size: 4096, "format": "png", "dynamic": true}),
+        created: newState.createdAt
+    })
+    user._id = Number(await newState.id)
+    await MUser.findByIdAndUpdate({_id: user._id}, user, {upsert: true})
+})
+
+allowUserBotting(dclient);
+dclient.login(config_token);
