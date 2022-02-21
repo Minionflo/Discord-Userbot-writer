@@ -106,7 +106,6 @@ dclient.on('voiceStateUpdate', async (oldState, newState) => {
         await MVoicechannel.findByIdAndUpdate({_id: voicechannel._id}, voicechannel, {upsert: true})
     } else if(newState.id != undefined) {
         if(oldState.channel == undefined) {return}
-        console.log(newState.id)
         var users = []
         users.push(newState.id)
         oldState.channel.members.forEach((member) => {
@@ -115,9 +114,7 @@ dclient.on('voiceStateUpdate', async (oldState, newState) => {
         var index = users.findIndex((value) => {
             return value == newState.id
         })
-        console.log(users)
         users.splice(index, 1)
-        console.log(users)
         const voicechannel = new MVoicechannel({
             members: users,
             guild: newState.guild.id,
